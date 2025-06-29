@@ -41,3 +41,4 @@ yarn-error.log*
 next-env.d.ts
 # drizzle ORM output
 /drizzle
+git pull origin main --allow-unrelated-histories
