@@ -1,10 +1,11 @@
-import Image from "next/image";
+import Footer from "@/components/Footer";
+import { HeroSectionOne } from "@/components/HeroSection";
 
 export default function Home() {
   return (
     <div>
-      hello 
+    <HeroSectionOne/>
+    <Footer/>
     </div>
-    
   );
 }
