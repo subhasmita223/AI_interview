@@ -1,4 +1,5 @@
 'use client';
+
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import React, { useEffect, useState } from 'react';
@@ -6,18 +7,16 @@ import Webcam from 'react-webcam';
 import useSpeechToText from 'react-hook-speech-to-text';
 import { Mic } from 'lucide-react';
 import { toast } from 'sonner';
-// import { ChatSession } from '@google/generative-ai';
 import { useUser } from '@clerk/nextjs';
 import moment from 'moment';
 import { db } from '@/utils/db';
 import { UserAnswer } from '@/utils/schema';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-function RecordAnswerSection({mockInterviewQuestion,activeQuestionIndex,interviewData}) {
-  const [isClient, setIsClient] = useState(false);
+function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, interviewData }) {
   const [userAnswer, setUserAnswer] = useState('');
-  const {user} = useUser();
   const [loading, setLoading] = useState(false);
+  const { user } = useUser();
 
   const {
     error,
@@ -32,38 +31,40 @@ function RecordAnswerSection({mockInterviewQuestion,activeQuestionIndex,intervie
     useLegacyResults: false,
   });
 
-  useEffect(()=> {
-    results.map((result) =>{
-        setUserAnswer(prevAns=>prevAns+result?.transcript)
-    })
-  },[results])
-
-  useEffect(() =>{
-    if(!isRecording && userAnswer?.length>10){
-      UpdateUserAnswer();
+  // Join all results after recording stops
+  useEffect(() => {
+    if (!isRecording && results.length > 0) {
+      const fullAnswer = results.map(r => r.transcript).join(' ').trim();
+      setUserAnswer(fullAnswer);
+      if (fullAnswer.length > 10) {
+        UpdateUserAnswer(fullAnswer);
+      }
     }
-    
-  },[userAnswer])
+  }, [isRecording]);
 
-  const StartStopRecording=async()=>{
-    if(isRecording){
+  const StartStopRecording = () => {
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+    if (isRecording) {
       stopSpeechToText();
+    } else {
+      setUserAnswer('');
+      setResults([]);
+      startSpeechToText();
     }
-    else{
-        startSpeechToText();
-    }
-  }
+  };
 
-  const UpdateUserAnswer = async() => {
+  const UpdateUserAnswer = async (finalAnswer) => {
+    try {
+      setLoading(true);
+      const question = mockInterviewQuestion[activeQuestionIndex]?.question;
 
-    console.log(userAnswer);
-    setLoading(true);
-    const feedbackPrompt = `
+      const prompt = `
 You are an AI interviewer. Analyze the following:
 
-Question: ${mockInterviewQuestion[activeQuestionIndex]?.question}
+Question: ${question}
 
-User Answer: ${userAnswer}
+User Answer: ${finalAnswer}
 
 Give a JSON response like:
 {
@@ -71,47 +72,44 @@ Give a JSON response like:
   "feedback": "<3-5 line feedback with suggestions>"
 }
 `;
-    
 
-      const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GOOGLE_API_KEY2);
+      const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GOOGLE_API_KEY);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const chat = model.startChat();
-      const result = await chat.sendMessage(feedbackPrompt);
-      // const result = await ChatSession.sendMessage(feedbackPrompt);
+      const result = await chat.sendMessage(prompt);
 
-      const mockJsonResp = (result.response.text()).replace(/```json|```/g, "").trim();
-      console.log(mockJsonResp);
-      const JsonFeedbackResp = JSON.parse(mockJsonResp);
-
+      const raw = result.response.text().replace(/```json|```/g, '').trim();
+      const JsonFeedbackResp = JSON.parse(raw);
 
       const mockId = interviewData?.mockId || interviewData?.mockID || 'unknown';
-      console.log("Resolved mockId:", mockId);
-      const resp = await db.insert(UserAnswer)
-      .values({
-        mockIdRef:String(mockId),
-        question:mockInterviewQuestion[activeQuestionIndex]?.question,
-        correctAns:mockInterviewQuestion[activeQuestionIndex]?.answer,
-        userAns:userAnswer,
-        feedback:JsonFeedbackResp?.feedback,
-        rating:JsonFeedbackResp?.rating,
-        userEmail:user?.primaryEmailAddress?.emailAddress,
-        createdAt:moment().format('YYYY-MM-DD HH:mm:ss')
-      })
 
-      if(resp){
-        toast('User Answer recorded successfully') ;
-        setUserAnswer('');
-        setResults([]);
-      }
+      await db.insert(UserAnswer).values({
+        mockIdRef: String(mockId),
+        question: question,
+        correctAns: mockInterviewQuestion[activeQuestionIndex]?.answer,
+        userAns: finalAnswer,
+        feedback: JsonFeedbackResp?.feedback,
+        rating: JsonFeedbackResp?.rating,
+        userEmail: user?.primaryEmailAddress?.emailAddress,
+        createdAt: moment().format('YYYY-MM-DD HH:mm:ss'),
+      });
+
+      toast.success('Answer recorded & feedback saved!');
+      setUserAnswer('');
       setResults([]);
+    } catch (err) {
+      console.error("Gemini or DB error:", err);
+      toast.error('Something went wrong.');
+    } finally {
       setLoading(false);
-  }
+    }
+  };
 
   return (
-    <div className="flex items-center justify-center flex-col">
-      <div className="flex flex-col mt-20 justify-center items-center bg-black rounded-lg p-5">
+    <div className="flex flex-col items-center justify-center">
+      <div className="flex flex-col mt-20 justify-center items-center bg-black rounded-lg p-5 relative">
         <Image
-          src={'/webcam.png'}
+          src="/webcam.png"
           width={200}
           height={200}
           alt="webcam"
@@ -126,19 +124,30 @@ Give a JSON response like:
           }}
         />
       </div>
-      <Button 
-      disabled={loading}
-      variant="outline" className="my-10"
-      onClick={StartStopRecording}
+
+      <Button
+        disabled={loading}
+        variant="outline"
+        className="my-10"
+        onClick={StartStopRecording}
       >
-        {isRecording ? 
-        <h2 className='text-red-500 flex gap-2'>
-            <Mic/> 'Stop Recording'
-        </h2>
-        :
-        'Record Answer'
-        }   
+        {isRecording ? (
+          <h2 className="text-red-500 flex gap-2 items-center">
+            <Mic /> Stop Recording
+          </h2>
+        ) : (
+          'Record Answer'
+        )}
       </Button>
+
+      {/* Debugging UI */}
+      {isRecording && <p className="text-green-600">🎤 Listening...</p>}
+      {interimResult && (
+        <p className="text-sm text-gray-400 italic">Live: {interimResult}</p>
+      )}
+      {userAnswer && !isRecording && (
+        <p className="text-sm text-blue-600 mt-2">📝 Final: {userAnswer}</p>
+      )}
     </div>
   );
 }
