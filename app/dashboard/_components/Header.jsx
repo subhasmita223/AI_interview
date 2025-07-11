@@ -11,7 +11,7 @@ function Header() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
           <Image src="/logo.svg" alt="logo" width={30} height={30} />
-          <span className="text-xl font-bold text-black dark:text-white">InterviewGenius</span>
+          <span className="text-xl font-bold text-black dark:text-white">PrepGen</span>
         </Link>
 
         {/* Nav Links */}

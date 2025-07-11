@@ -4,7 +4,7 @@ import React from 'react';
 import Header from './_components/Header';
 
 export const metadata = {
-  title: 'Dashboard | InterviewGenius',
+  title: 'Dashboard | PrepGen',
   description: 'Manage your AI mock interviews.',
 };
 

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "InterviewGenius – AI Mock Interviews",
+  title: "PrepGen – AI Mock Interviews",
   description: "Practice mock interviews with intelligent AI feedback.",
 };
 

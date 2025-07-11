@@ -121,7 +121,7 @@ const Navbar = () => {
         alt="logo"
         width={30}
         height={30} />
-        <span className="text-base font-bold md:text-2xl">InterviewGenius</span>
+        <span className="text-base font-bold md:text-2xl">PrepGen</span>
       </div>
       <Link href='/dashboard'>
       <button
