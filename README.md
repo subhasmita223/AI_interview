@@ -52,14 +52,9 @@ npm install
 
 ### 3. Configure Environment Variables
 
-Create a `.env.local` file and add the following:
+Create a `.env.local` file and add the keys:
 
-```env
-CLERK_PUBLISHABLE_KEY=your_clerk_key
-CLERK_SECRET_KEY=your_clerk_secret
-GEMINI_API_KEY=your_gemini_api_key
-DATABASE_URL=postgresql://user:pass@host:port/dbname
-```
+
 
 ### 4. Run the App
 
